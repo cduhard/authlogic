@@ -25,18 +25,29 @@ module Authlogic
               domain_head_regex = '(?:[A-Z0-9\-]+\.)+'
               domain_tld_regex  = '(?:[A-Z]{2}|aero|ag|asia|at|be|biz|ca|cc|cn|com|de|edu|eu|fm|gov|gs|jobs|jp|in|info|me|mil|mobi|museum|ms|name|net|nu|nz|org|tc|tw|tv|uk|us|vg|ws)'
               email_field_regex ||= /\A#{email_name_regex}@#{domain_head_regex}#{domain_tld_regex}\z/i
-              
+
               if options[:validate_login_field]
                 case options[:login_field_type]
                 when :email
-                  validates_length_of options[:login_field], sanitize_validation_length_options({:within => 6..100}, options[:login_field_validates_length_of_options]).merge(:message => I18n.t('error_messages.email_length_error', :default => "must be between 6 and 100 characters."))
-                  validates_format_of options[:login_field], {:with => email_field_regex, :message => I18n.t('error_messages.email_invalid', :default => "should look like an email address.")}.merge(options[:login_field_validates_format_of_options])
+                  validates_presence_of options[:login_field], :message => I18n.t('error_messages.email_required', :default => "can't be blank.")
+                  validates_length_of options[:login_field], sanitize_validation_length_options({:within => 6..100},
+                  options[:login_field_validates_length_of_options]).merge(
+                    :too_short => I18n.t('error_messages.email_too_short_error', :default => "must be between 6 and 100 characters."),
+                    :too_long => I18n.t('error_messages.email_too_long_error', :default => "must be between 6 and 100 characters."),
+                    :unless => lambda{|record| record.send(options[:login_field]).blank?}
+                  )
+                  validates_format_of options[:login_field], 
+                      { :with => email_field_regex, 
+                        :message => I18n.t('error_messages.email_invalid',:default => "should look like an email address."),
+                        :unless => lambda{|record| record.send(options[:login_field]).blank?}
+                      }.merge( options[:login_field_validates_format_of_options])
+
                 else
                   validates_length_of options[:login_field], sanitize_validation_length_options({:within => 2..100}, options[:login_field_validates_length_of_options])
                   validates_format_of options[:login_field], {:with => /\A\w[\w\.\-_@ ]+\z/, :message => I18n.t('error_messages.login_invalid', :default => "should use only letters, numbers, spaces, and .-_@ please.")}.merge(options[:login_field_validates_format_of_options])
                 end
                 
-                validates_uniqueness_of options[:login_field], {:allow_blank => true}.merge(options[:login_field_validates_uniqueness_of_options].merge(:if => "#{options[:login_field]}_changed?".to_sym))
+                validates_uniqueness_of options[:login_field], {:allow_blank => true}.merge(options[:login_field_validates_uniqueness_of_options].merge(:if => "#{options[:login_field]}_changed?".to_sym, :message => I18n.t('error_messages.email_not_unique', :default => "already taken, choose another.")))
               end
               
               if options[:validate_password_field]
@@ -46,13 +57,13 @@ module Authlogic
               end
               
               if options[:validate_email_field] && options[:email_field]
-                validates_length_of options[:email_field], sanitize_validation_length_options({:within => 6..100}, options[:email_field_validates_length_of_options]).merge(:message => I18n.t('error_messages.email_length_error', :default => "must be between 6 and 100 characters."))
-                validates_format_of options[:email_field], {:with => email_field_regex, :message => I18n.t('error_messages.email_invalid', :default => "should look like an email address.")}.merge(options[:email_field_validates_format_of_options])
-                validates_uniqueness_of options[:email_field], options[:email_field_validates_uniqueness_of_options].merge(:if => "#{options[:email_field]}_changed?".to_sym)
-                
-                validates_length_of options[:email_field], sanitize_validation_length_options({:within => 6..100}, options[:email_field_validates_length_of_options])
-                validates_format_of options[:email_field], {:with => email_field_regex, :message => I18n.t('error_messages.email_invalid', :default => "should look like an email address.")}.merge(options[:email_field_validates_format_of_options])
-                validates_uniqueness_of options[:email_field], options[:email_field_validates_uniqueness_of_options].merge(:if => "#{options[:email_field]}_changed?".to_sym)
+                validates_length_of options[:email_field], sanitize_validation_length_options({:within => 6..100},
+                options[:email_field_validates_uniqueness_of_options]).merge(
+                  :too_short => I18n.t('error_messages.email_too_short_error', :default => "must be between 6 and 100 characters."),
+                  :too_long => I18n.t('error_messages.email_too_long_error', :default => "must be between 6 and 100 characters."),
+                  :unless => lambda{|record| record.send(options[:email_field]).blank?}
+                )
+                validates_uniqueness_of options[:email_field], {:allow_blank => true}.merge(options[:email_field_validates_uniqueness_of_options].merge(:if => "#{options[:email_field]}_changed?".to_sym, :message => I18n.t('error_messages.email_not_unique', :default => "already taken, choose another.")))
               end
             end
             
